@@ -1,5 +1,9 @@
 package com.example.demo.model;
 
+import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -17,6 +21,7 @@ public class Pelicula {
     private Director director;
 
     private int anio;
+    
     @Column(columnDefinition = "TEXT")
     private String sinopsis;
 
@@ -103,4 +108,15 @@ public class Pelicula {
     public enum FuenteDatos {
         Manual, Filmaffinity
     }
+    @ManyToMany(cascade = {CascadeType.MERGE, CascadeType.PERSIST})
+    @JoinTable(
+        name = "pelicula_genero",
+        joinColumns = @JoinColumn(name = "pelicula_id"),
+        inverseJoinColumns = @JoinColumn(name = "genero_id")
+    )
+    @JsonManagedReference
+    private Set<Genero> generos = new java.util.HashSet<>();
+
+    public Set<Genero> getGeneros() { return generos; }
+    public void setGeneros(Set<Genero> generos) { this.generos = generos; }
 }

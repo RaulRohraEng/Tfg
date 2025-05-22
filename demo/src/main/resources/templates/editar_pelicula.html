@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Película</title>
+</head>
+<body>
+    <h1>Editar Película</h1>
+
+    <form th:action="@{'/peliculas/editar/' + ${pelicula.id}}" method="post">
+        <label for="titulo">Título:</label>
+        <input type="text" id="titulo" name="titulo" th:value="${pelicula.titulo}" required />
+
+        <label for="anio">Año:</label>
+        <input type="number" id="anio" name="anio" th:value="${pelicula.anio}" />
+
+        <label for="duracion">Duración (min):</label>
+        <input type="number" id="duracion" name="duracion" th:value="${pelicula.duracion}" />
+
+        <label for="puntuacion">Puntuación:</label>
+        <input type="number" id="puntuacion" name="puntuacion" step="0.1" th:value="${pelicula.puntuacion}" />
+
+        <label for="director">Director:</label>
+        <input type="text" id="director" name="director" th:value="${pelicula.director.nombre}" />
+
+        <label for="sinopsis">Sinopsis:</label>
+        <textarea id="sinopsis" name="sinopsis" rows="5" cols="60" th:text="${pelicula.sinopsis}"></textarea>
+
+        <label for="generos">Géneros:</label>
+        <select id="generos" name="generos" multiple>
+            <option th:each="g : ${todosGeneros}"
+                    th:value="${g.nombre}"
+                    th:text="${g.nombre}"
+                    th:selected="${pelicula.generos.contains(g)}">
+            </option>
+        </select>
+
+        <br><br>
+        <button type="submit">Guardar</button>
+    </form>
+
+    <a href="/peliculas">Cancelar</a>
+</body>
+</html>
+

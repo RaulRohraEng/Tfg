@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class FilmaffinityScraper {
@@ -61,6 +63,12 @@ public class FilmaffinityScraper {
         Element sinopsisElement = doc.select("dd[itemprop=description]").first();
         String sinopsis = (sinopsisElement != null) ? sinopsisElement.text() : "";
 
+        Element generoContainer = doc.selectFirst("dd.card-genres");
+        List<String> generos = generoContainer != null
+                ? generoContainer.select("a").stream()
+                    .map(Element::text)
+                    .collect(Collectors.toList())
+                : List.of();
 
 
         // Imprimir valores en consola para depuración
@@ -70,8 +78,9 @@ public class FilmaffinityScraper {
         System.out.println("Duración: " + duration);
         System.out.println("Puntuación: " + rating);
         System.out.println("URL: " + movieUrl);
+        System.out.println("Genero: " + generos);
 
-        return new MovieData(title, director, year, duration, rating, movieUrl, sinopsis);
+        return new MovieData(title, director, year, duration, rating, movieUrl, sinopsis, generos);
     }
 
     public static class MovieData {
@@ -82,8 +91,9 @@ public class FilmaffinityScraper {
         public String puntuacion;
         public String url;
         public String sinopsis; // <--- Nuevo campo
+        public List<String> generos;
 
-        public MovieData(String titulo, String director, String anio, String duracion, String puntuacion, String url, String sinopsis) {
+        public MovieData(String titulo, String director, String anio, String duracion, String puntuacion, String url, String sinopsis, List<String> generos) {
             this.titulo = titulo;
             this.director = director;
             this.anio = anio;
@@ -91,7 +101,7 @@ public class FilmaffinityScraper {
             this.puntuacion = puntuacion;
             this.url = url;
             this.sinopsis = sinopsis;
+            this.generos = generos;
         }
     }
-
 }

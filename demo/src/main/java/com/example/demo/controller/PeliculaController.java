@@ -1,17 +1,20 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Director;
+import com.example.demo.model.Genero;
 import com.example.demo.model.Pelicula;
 import com.example.demo.dto.PeliculaResponse;
 import com.example.demo.repository.DirectorRepository;
+import com.example.demo.repository.GeneroRepository;
 import com.example.demo.repository.PeliculaRepository;
 import com.example.demo.service.FilmaffinityScraper;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/peliculas")
@@ -20,30 +23,30 @@ public class PeliculaController {
     private final PeliculaRepository peliculaRepository;
     private final FilmaffinityScraper filmaffinityScraper;
     private final DirectorRepository directorRepository;
+    private final GeneroRepository generoRepository;
 
     public PeliculaController(PeliculaRepository peliculaRepository,
                               FilmaffinityScraper filmaffinityScraper,
-                              DirectorRepository directorRepository) {
+                              DirectorRepository directorRepository,
+                              GeneroRepository generoRepository) {
         this.peliculaRepository = peliculaRepository;
         this.filmaffinityScraper = filmaffinityScraper;
         this.directorRepository = directorRepository;
+        this.generoRepository = generoRepository;
     }
 
-    // Obtener todas las películas
     @GetMapping
     public List<Pelicula> getAllPeliculas() {
         return peliculaRepository.findAll();
     }
 
-    // Obtener una película por ID
     @GetMapping("/{id}")
     public ResponseEntity<Pelicula> getPeliculaById(@PathVariable Long id) {
-        Optional<Pelicula> pelicula = peliculaRepository.findById(id);
-        return pelicula.map(ResponseEntity::ok)
+        return peliculaRepository.findById(id)
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // Agregar una nueva película manualmente
     @PostMapping
     public ResponseEntity<PeliculaResponse> createPelicula(@RequestBody PeliculaResponse peliculaRequest) {
         Pelicula nuevaPelicula = new Pelicula();
@@ -53,84 +56,76 @@ public class PeliculaController {
         nuevaPelicula.setPuntuacion(peliculaRequest.getPuntuacion());
         nuevaPelicula.setSinopsis(peliculaRequest.getSinopsis());
         nuevaPelicula.setImagen(peliculaRequest.getImagen());
-        nuevaPelicula.setFuenteDatos(Pelicula.FuenteDatos.Manual); // Se guarda como "Manual"
+        nuevaPelicula.setFuenteDatos(Pelicula.FuenteDatos.Manual);
 
-        // Manejo del director
-        Director directorEntity = directorRepository.findByNombre(peliculaRequest.getDirector());
-        if (directorEntity == null) {
-            directorEntity = new Director();
-            directorEntity.setNombre(peliculaRequest.getDirector());
-            directorEntity = directorRepository.save(directorEntity);
+        // Director
+        Director director = directorRepository.findByNombre(peliculaRequest.getDirector());
+        if (director == null) {
+            director = new Director();
+            director.setNombre(peliculaRequest.getDirector());
+            director = directorRepository.save(director);
         }
-        nuevaPelicula.setDirector(directorEntity);
+        nuevaPelicula.setDirector(director);
 
-        Pelicula peliculaGuardada = peliculaRepository.save(nuevaPelicula);
+        // Géneros
+        Set<Genero> generos = peliculaRequest.getGeneros().stream().map(nombre -> {
+            Genero genero = generoRepository.findByNombre(nombre);
+            if (genero == null) {
+                genero = new Genero();
+                genero.setNombre(nombre);
+                genero = generoRepository.save(genero);
+            }
+            return genero;
+        }).collect(Collectors.toSet());
+        nuevaPelicula.setGeneros(generos);
 
-        // Convertir a DTO de respuesta
-        PeliculaResponse response = new PeliculaResponse();
-        response.setId(peliculaGuardada.getId());
-        response.setTitulo(peliculaGuardada.getTitulo());
-        response.setDirector(peliculaGuardada.getDirector().getNombre());
-        response.setAnio(peliculaGuardada.getAnio());
-        response.setDuracion(peliculaGuardada.getDuracion());
-        response.setPuntuacion(peliculaGuardada.getPuntuacion());
-        response.setSinopsis(peliculaGuardada.getSinopsis());
-        response.setImagen(peliculaGuardada.getImagen());
-        response.setFuenteDatos(peliculaGuardada.getFuenteDatos().toString());
+        Pelicula guardada = peliculaRepository.save(nuevaPelicula);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(mapToResponse(guardada));
     }
 
-
-    // Buscar una película en Filmaffinity y guardarla
     @PostMapping("/buscar/{titulo}")
     public ResponseEntity<PeliculaResponse> buscarYGuardarPelicula(@PathVariable String titulo) {
         try {
             FilmaffinityScraper.MovieData movieData = filmaffinityScraper.getMovieData(titulo);
-            if (movieData == null) {
-                return ResponseEntity.notFound().build();
-            }
+            if (movieData == null) return ResponseEntity.notFound().build();
 
             Pelicula nuevaPelicula = new Pelicula();
             nuevaPelicula.setTitulo(movieData.titulo);
             nuevaPelicula.setAnio(Integer.parseInt(movieData.anio));
-            nuevaPelicula.setDuracion(Integer.parseInt(movieData.duracion.replace(" min.", "").trim()));
-            nuevaPelicula.setPuntuacion(Double.parseDouble(movieData.puntuacion.replace(",", ".")));
+            nuevaPelicula.setDuracion(Integer.parseInt(movieData.duracion));
+            nuevaPelicula.setPuntuacion(Double.parseDouble(movieData.puntuacion));
             nuevaPelicula.setFuenteDatos(Pelicula.FuenteDatos.Filmaffinity);
             nuevaPelicula.setSinopsis(movieData.sinopsis);
 
-            // Manejo del director (suponiendo que director es una entidad)
-            Director directorEntity = directorRepository.findByNombre(movieData.director);
-            if (directorEntity == null) {
-                directorEntity = new Director();
-                directorEntity.setNombre(movieData.director);
-                directorEntity = directorRepository.save(directorEntity);
+            Director director = directorRepository.findByNombre(movieData.director);
+            if (director == null) {
+                director = new Director();
+                director.setNombre(movieData.director);
+                director = directorRepository.save(director);
             }
-            nuevaPelicula.setDirector(directorEntity);
+            nuevaPelicula.setDirector(director);
 
-            Pelicula peliculaGuardada = peliculaRepository.save(nuevaPelicula);
+            Set<Genero> generos = movieData.generos.stream().map(nombre -> {
+                Genero genero = generoRepository.findByNombre(nombre);
+                if (genero == null) {
+                    genero = new Genero();
+                    genero.setNombre(nombre);
+                    genero = generoRepository.save(genero);
+                }
+                return genero;
+            }).collect(Collectors.toSet());
+            nuevaPelicula.setGeneros(generos);
 
-            // Mapeo a DTO
-            PeliculaResponse response = new PeliculaResponse();
-            response.setId(peliculaGuardada.getId());
-            response.setTitulo(peliculaGuardada.getTitulo());
-            response.setDirector(peliculaGuardada.getDirector().getNombre()); // Solo el nombre
-            response.setAnio(peliculaGuardada.getAnio());
-            response.setSinopsis(peliculaGuardada.getSinopsis());
-            response.setDuracion(peliculaGuardada.getDuracion());
-            response.setPuntuacion(peliculaGuardada.getPuntuacion());
-            response.setImagen(peliculaGuardada.getImagen());
-            response.setFuenteDatos(peliculaGuardada.getFuenteDatos().toString());
+            Pelicula guardada = peliculaRepository.save(nuevaPelicula);
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(mapToResponse(guardada));
         } catch (IOException e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
 
-
-    // Actualizar una película por ID
     @PutMapping("/{id}")
     public ResponseEntity<PeliculaResponse> updatePelicula(@PathVariable Long id, @RequestBody PeliculaResponse peliculaRequest) {
         return peliculaRepository.findById(id).map(pelicula -> {
@@ -141,45 +136,52 @@ public class PeliculaController {
             pelicula.setSinopsis(peliculaRequest.getSinopsis());
             pelicula.setImagen(peliculaRequest.getImagen());
 
-            // Actualizar director
-            Director directorEntity = directorRepository.findByNombre(peliculaRequest.getDirector());
-            if (directorEntity == null) {
-                directorEntity = new Director();
-                directorEntity.setNombre(peliculaRequest.getDirector());
-                directorEntity = directorRepository.save(directorEntity);
+            Director director = directorRepository.findByNombre(peliculaRequest.getDirector());
+            if (director == null) {
+                director = new Director();
+                director.setNombre(peliculaRequest.getDirector());
+                director = directorRepository.save(director);
             }
-            pelicula.setDirector(directorEntity);
+            pelicula.setDirector(director);
 
-            Pelicula updatedPelicula = peliculaRepository.save(pelicula);
+            Set<Genero> generos = peliculaRequest.getGeneros().stream().map(nombre -> {
+                Genero genero = generoRepository.findByNombre(nombre);
+                if (genero == null) {
+                    genero = new Genero();
+                    genero.setNombre(nombre);
+                    genero = generoRepository.save(genero);
+                }
+                return genero;
+            }).collect(Collectors.toSet());
+            pelicula.setGeneros(generos);
 
-            // Convertir a DTO de respuesta
-            PeliculaResponse response = new PeliculaResponse();
-            response.setId(updatedPelicula.getId());
-            response.setTitulo(updatedPelicula.getTitulo());
-            response.setDirector(updatedPelicula.getDirector().getNombre());
-            response.setAnio(updatedPelicula.getAnio());
-            response.setDuracion(updatedPelicula.getDuracion());
-            response.setPuntuacion(updatedPelicula.getPuntuacion());
-            response.setSinopsis(updatedPelicula.getSinopsis());
-            response.setImagen(updatedPelicula.getImagen());
-            response.setFuenteDatos(updatedPelicula.getFuenteDatos().toString());
+            Pelicula actualizada = peliculaRepository.save(pelicula);
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(mapToResponse(actualizada));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-
-    // Eliminar una película
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePelicula(@PathVariable Long id) {
         if (peliculaRepository.existsById(id)) {
             peliculaRepository.deleteById(id);
             return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.notFound().build();
     }
-    
-    
 
+    private PeliculaResponse mapToResponse(Pelicula pelicula) {
+        PeliculaResponse response = new PeliculaResponse();
+        response.setId(pelicula.getId());
+        response.setTitulo(pelicula.getTitulo());
+        response.setDirector(pelicula.getDirector().getNombre());
+        response.setAnio(pelicula.getAnio());
+        response.setDuracion(pelicula.getDuracion());
+        response.setPuntuacion(pelicula.getPuntuacion());
+        response.setSinopsis(pelicula.getSinopsis());
+        response.setImagen(pelicula.getImagen());
+        response.setFuenteDatos(pelicula.getFuenteDatos().toString());
+        response.setGeneros(pelicula.getGeneros().stream().map(Genero::getNombre).collect(Collectors.toList()));
+        return response;
+    }
 }

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Estadísticas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .charts-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px;
+            flex-wrap: wrap;
+        }
+        .chart-box {
+            width: 30%;
+            min-width: 300px;
+            max-width: 400px;
+            height: 300px;
+        }
+        .volver {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Estadísticas</h1>
+
+<!-- Botón de volver -->
+<div class="volver">
+    <a href="/peliculas">
+        <button>← Volver a la lista</button>
+    </a>
+</div>
+
+<div class="charts-container">
+
+    <!-- Gráfico de distribución por género -->
+    <div class="chart-box">
+        <h3>Distribución por Género</h3>
+        <canvas id="generoChart"></canvas>
+    </div>
+
+    <!-- Gráfico de evolución por año -->
+    <div class="chart-box">
+        <h3>Películas por Año</h3>
+        <canvas id="anioChart"></canvas>
+    </div>
+
+    <!-- Gráfico de puntuación media -->
+    <div class="chart-box">
+        <h3>Puntuación Media por Año</h3>
+        <canvas id="puntuacionChart"></canvas>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const datosGenero = /*[[${datosGenero}]]*/ {};
+    const datosAnio = /*[[${datosAnio}]]*/ {};
+    const datosPuntuacion = /*[[${datosPuntuacion}]]*/ {};
+
+    new Chart(document.getElementById("generoChart"), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(datosGenero),
+            datasets: [{
+                label: 'Películas por género',
+                data: Object.values(datosGenero),
+                backgroundColor: 'rgba(255, 99, 132, 0.6)'
+            }]
+        }
+    });
+
+    new Chart(document.getElementById("anioChart"), {
+        type: 'line',
+        data: {
+            labels: Object.keys(datosAnio),
+            datasets: [{
+                label: 'Películas por año',
+                data: Object.values(datosAnio),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+            }]
+        }
+    });
+
+    new Chart(document.getElementById("puntuacionChart"), {
+        type: 'line',
+        data: {
+            labels: Object.keys(datosPuntuacion),
+            datasets: [{
+                label: 'Puntuación media',
+                data: Object.values(datosPuntuacion),
+                backgroundColor: 'rgba(255, 206, 86, 0.6)'
+            }]
+        }
+    });
+</script>
+</body>
+</html>

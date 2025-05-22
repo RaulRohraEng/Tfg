@@ -1,5 +1,7 @@
 package com.example.demo.dto;
 
+import java.util.List;
+
 public class PeliculaResponse {
     private Long id;
     private String titulo;
@@ -9,6 +11,7 @@ public class PeliculaResponse {
     private Integer duracion;
     private Double puntuacion;
     private String imagen;
+    
     private String fuenteDatos;
 	public Long getId() {
 		return id;
@@ -64,6 +67,11 @@ public class PeliculaResponse {
 	public void setFuenteDatos(String fuenteDatos) {
 		this.fuenteDatos = fuenteDatos;
 	}
-    
-    // Getters y setters
+	private List<String> generos;
+
+	public List<String> getGeneros() { return generos; }
+	public void setGeneros(List<String> generos) { this.generos = generos; }
+
 }
+
+    // Getters y setters
